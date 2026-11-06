@@ -1,0 +1,380 @@
+:root {
+    --primary-color: #FFF;
+    --secondary-color: #D6D6D6;
+    --secondary-opacity-color: #d6d6d615;
+    --terciary-color: #A7A7A7;
+
+    --primary-dark-color: #333333;
+    --primary-dark-opacity-color: #333333C4;
+    --background-dark-color: #202020;
+
+    --text-color: #FFF;
+    --oposite-text-color: #000;
+    --header-height: 75px;
+    --container-width: 95vw;
+}
+
+
+html {
+    scroll-behavior: smooth;
+}
+
+body {
+    margin: 0;
+    padding: 0;
+    background-color: var(--background-dark-color);
+    color: #FAFAFA;
+    margin-top: calc(var(--header-height) + 10px);
+}
+
+header {
+    display: flex;
+    align-items: center;
+    z-index: 1000;
+    top: 0;
+    height: var(--header-height);
+    width: 100%;
+    background-color: var(--primary-dark-opacity-color);
+    backdrop-filter: blur(15px);
+    position: fixed;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+header .navbar {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: var(--header-height);
+    width: var(--container-width);
+
+}
+
+.container {
+    max-width: var(--container-width);
+    margin: 0 auto;
+}
+
+/* Barra de rolagem própria da lista de partições: aparece com fade só quando o cursor
+   está sobre a lista ou sobre a própria barra. Funciona igual em Chrome, Edge e Firefox. */
+.nav-scrollbar {
+    position: absolute;
+    bottom: 4px;
+    height: 6px;
+    z-index: 1001;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.4s ease;
+}
+
+.nav-scrollbar.visible {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.nav-scrollbar-thumb {
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    border-radius: 999px;
+    background: var(--terciary-color);
+    cursor: grab;
+    touch-action: none;
+}
+
+.navbar {
+
+    .nav-links {
+        display: flex;
+        align-items: center;
+        justify-content: flex-start;
+        overflow-x: auto;
+        margin: 0;
+        width: 100vw;
+        height: var(--header-height);
+        gap: 2%;
+        border: #fff solid 1px;
+        /* A barra nativa fica oculta em todos os navegadores; a barra visível é .nav-scrollbar (ui.js). */
+        scrollbar-width: none;
+    }
+
+    .nav-links li {
+        flex-shrink: 0;
+    }
+}
+
+.nav-links {
+    li {
+        list-style: none;
+        background-color: transparent;
+        backdrop-filter: blur(0px);
+        border: var(--terciary-color) solid 2px;
+        border-radius: 50px;
+        padding: 5px 55px;
+        transition: all 0.5s ease;
+        box-shadow: 0px 3px 12px 1px #00000085;
+    }
+
+    a {
+        color: var(--text-color);
+        text-decoration: none;
+        font-family: Rajdhani;
+        font-size: 20px;
+        font-weight: 400;
+        text-wrap: nowrap;
+    }
+
+    li:hover {
+        color: var(--primary-color);
+        border-radius: 0;
+        box-shadow: 0px 0px 15px 1px var(--secondary-color);
+        border: var(--primary-color) solid 2px;
+        background-color: var(--secondary-opacity-color);
+        backdrop-filter: blur(5px);
+
+        a {
+            font-weight: 500;
+        }
+    }
+}
+
+.topico.container {
+    display: flex;
+    flex-direction: column;
+}
+
+.sites-grid {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 2vh;
+}
+
+.nome-topico {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    h1 {
+        background-color: var(--primary-dark-opacity-color);
+        border: var(--primary-color) 2px solid;
+        border-radius: 50px;
+        font-size: 40px;
+        padding: 18px 36px 18px 36px;
+        height: 46px;
+        color: var(--primary-dark-opacity-color);
+        font-family: Rajdhani;
+        -webkit-text-stroke: 1px #FFF;
+        text-shadow: var(--secondary-color) 0px 0px 15px;
+    }
+
+}
+
+.site {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.site .button {
+    display: flex;
+    align-self: center;
+    justify-content: center;
+    position: relative;
+    z-index: 1;
+    /*   FORMATO   */
+    height: 150px;
+    width: 150px;
+    border-radius: 37px;
+    /*   CORES   */
+    background-color: var(--primary-dark-opacity-color);
+    box-shadow: 0px 5px 5px -1px #0c0c0c;
+    border: transparent solid 2px;
+    /*   TRANSICOES   */
+    transition: all 0.5s ease;
+    align-items: center;
+}
+
+.site .button:hover {
+    /*   CORES   */
+    border: var(--primary-color) solid 2px;
+    /*   SOMBRA   */
+    box-shadow: 0px 2px 20px 1px var(--secondary-color);
+    /*   TRANSICOES   */
+    transform: translateY(-5px);
+}
+
+.site a {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--oposite-text-color);
+    text-decoration: none;
+    height: 130px;
+    width: 130px;
+    border-radius: 32px;
+    border: #fff solid 1px;
+    /* Background */
+    background: #F2F2F2;
+    background: -webkit-linear-gradient(135deg, #f2f2f2 0%, #e7e6e6 63%, #d0cece 100%);
+    background: -moz-linear-gradient(135deg, #f2f2f2 0%, #e7e6e6 63%, #d0cece 100%);
+    background: linear-gradient(135deg, #f2f2f2 0%, #e7e6e6 63%, #d0cece 100%);
+    filter: progid:DXImageTransform.Microsoft.gradient(startColorstr="#F2F2F2", endColorstr="#D0CECE", GradientType=0);
+}
+
+.site h2 {
+    font-size: 30px;
+    color: var(--primary-color);
+    margin-top: 15px;
+    text-align: center;
+    font-family: Rajdhani;
+    font-weight: 500;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.site:hover .site-name {
+    opacity: 1;
+}
+
+.site.button img {
+    margin: 10px;
+    width: 50px;
+    height: 50px;
+    border-radius: 25%;
+}
+
+::-webkit-scrollbar {
+    display: none;
+}
+
+/* ---------- Seleção múltipla e arrastar/soltar ---------- */
+
+#app .site,
+#app .nome-topico {
+    user-select: none;
+}
+
+body.arrastando-ativo {
+    cursor: grabbing;
+    user-select: none;
+}
+
+.site.selecionado .button {
+    border-color: var(--primary-color);
+    box-shadow: 0px 2px 20px 1px var(--secondary-color);
+}
+
+.nome-topico.selecionado h1 {
+    box-shadow: 0px 0px 18px 2px var(--secondary-color);
+}
+
+.arrastando {
+    opacity: 0.4;
+}
+
+.arraste-fantasma {
+    position: fixed;
+    left: 0;
+    top: 0;
+    z-index: 4000;
+    pointer-events: none;
+    padding: 8px 18px;
+    border: var(--primary-color) solid 2px;
+    border-radius: 50px;
+    background-color: var(--primary-dark-opacity-color);
+    backdrop-filter: blur(5px);
+    color: var(--text-color);
+    font-family: Rajdhani;
+    font-size: 18px;
+    white-space: nowrap;
+}
+
+.arraste-indicador {
+    position: fixed;
+    z-index: 3999;
+    display: none;
+    pointer-events: none;
+    border-radius: 2px;
+    background-color: var(--primary-color);
+    box-shadow: 0px 0px 10px var(--primary-color);
+}
+
+.zona-orfaos {
+    position: fixed;
+    top: calc(var(--header-height) + 10px);
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 3998;
+    padding: 12px 32px;
+    border: var(--terciary-color) dashed 2px;
+    border-radius: 50px;
+    background-color: var(--primary-dark-opacity-color);
+    backdrop-filter: blur(10px);
+    color: var(--text-color);
+    font-family: Rajdhani;
+    font-size: 20px;
+}
+
+.zona-orfaos.drop-alvo {
+    border: var(--primary-color) solid 2px;
+}
+
+.material-symbols-outlined {
+    font-family: 'Material Symbols Outlined';
+    font-weight: normal;
+    font-style: normal;
+    font-size: 24px;
+    line-height: 1;
+    letter-spacing: normal;
+    text-transform: none;
+    white-space: nowrap;
+    display: inline-block;
+    user-select: none;
+    -webkit-font-feature-settings: 'liga';
+    font-feature-settings: 'liga';
+    -webkit-font-smoothing: antialiased;
+}
+
+.fab .material-symbols-outlined {
+    font-size: 32px;
+}
+
+/* Lixeira flutuante: mesma altura da faixa de órfãos, canto superior direito. */
+.lixeira-flutuante {
+    position: fixed;
+    top: calc(var(--header-height) + 10px);
+    right: 20px;
+    z-index: 3998;
+    width: 44px;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border: #e5484d solid 2px;
+    border-radius: 50%;
+    background-color: var(--primary-dark-opacity-color);
+    backdrop-filter: blur(10px);
+    color: #e5484d;
+    cursor: pointer;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.25s ease, visibility 0s linear 0.25s, background-color 0.2s;
+}
+
+.lixeira-flutuante.visivel {
+    opacity: 1;
+    visibility: visible;
+    transition: opacity 0.25s ease, visibility 0s, background-color 0.2s;
+}
+
+.lixeira-flutuante:hover {
+    background-color: #e5484d;
+    color: #fff;
+}
+
+.divisao.drop-alvo {
+    outline: var(--terciary-color) dashed 2px;
+    outline-offset: -2px;
+    border-radius: 20px;
+}
