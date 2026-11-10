@@ -14,14 +14,60 @@
         rel="stylesheet">
     <link rel="shortcur icon" href="./assets/icone-site.png" />
     <title>UtiliT</title>
+    <script>
+        // Aplica o tema e a cor de destaque antes da primeira pintura (evita piscar).
+        // main.js reaplica depois (e ajusta a cor se ela estiver ilegível no modo).
+        try {
+            var salvo = JSON.parse(localStorage.getItem('utilit_data') || '{}');
+            var ajustes = (salvo && salvo.settings) || {};
+            var tema = ajustes.theme;
+            if (tema !== 'light' && tema !== 'dark') {
+                tema = window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+            }
+            var raiz = document.documentElement;
+            raiz.dataset.theme = tema;
+            var cor = ajustes.accent;
+            if (/^#[0-9a-f]{6}$/.test(cor)) {
+                var canais = [1, 3, 5].map(function (i) { return parseInt(cor.slice(i, i + 2), 16); });
+                var lum = function (c) {
+                    var p = c.map(function (v) { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); });
+                    return 0.2126 * p[0] + 0.7152 * p[1] + 0.0722 * p[2];
+                };
+                var contraste = function (a, b) { return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05); };
+                var l = lum(canais);
+                var fundo = tema === 'light' ? lum([236, 236, 236]) : lum([32, 32, 32]);
+                if (contraste(l, fundo) >= 3) {
+                    raiz.dataset.accent = '';
+                    raiz.style.setProperty('--accent', cor);
+                    raiz.style.setProperty('--accent-rgb', canais.join(', '));
+                    raiz.style.setProperty('--accent-on',
+                        contraste(l, lum([28, 28, 28])) >= contraste(l, lum([242, 242, 242])) ? '#1c1c1c' : '#f2f2f2');
+                }
+            }
+        } catch (e) {
+            document.documentElement.dataset.theme = 'dark';
+        }
+    </script>
 </head>
 
 <body>
 
     <header>
         <div class="container">
-            <nav class="navbar">
-                <ul class="nav-links"></ul>
+            <nav class="navbar" aria-label="Partições">
+                <div class="nav-shell">
+                    <ul class="nav-links"></ul>
+                    <button class="nav-arrow nav-arrow-esquerda" type="button" data-dir="-1"
+                        aria-label="Ver partições anteriores">
+                        <span class="material-symbols-outlined" aria-hidden="true">chevron_left</span>
+                        <span class="nav-badge"></span>
+                    </button>
+                    <button class="nav-arrow nav-arrow-direita" type="button" data-dir="1"
+                        aria-label="Ver próximas partições">
+                        <span class="nav-badge"></span>
+                        <span class="material-symbols-outlined" aria-hidden="true">chevron_right</span>
+                    </button>
+                </div>
             </nav>
         </div>
     </header>

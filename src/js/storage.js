@@ -12,8 +12,10 @@ const isObject = (value) => value !== null && typeof value === 'object' && !Arra
 
 // ---------- Estado e persistência ----------
 
+export const THEMES = ['dark', 'light'];
+
 export function emptyData() {
-  return { version: SCHEMA_VERSION, topics: [], orphans: [] };
+  return { version: SCHEMA_VERSION, topics: [], orphans: [], settings: {} };
 }
 
 export function loadData() {
@@ -74,8 +76,127 @@ export function domainOf(url) {
   return new URL(url).hostname.replace(/^www\./, '');
 }
 
+// Nome de ícone do Material Symbols: "Rocket Launch" / "rocket-launch" → "rocket_launch".
+// Devolve null se não tiver o formato de um nome de símbolo.
+export function normalizeIconName(raw) {
+  const name = String(raw ?? '').trim().toLowerCase().replace(/[\s-]+/g, '_');
+  return /^[a-z0-9_]{1,64}$/.test(name) ? name : null;
+}
+
+// Slug de marca do thesvg.org (ex.: "youtube", "amazon-music").
+// null = "já procurado, sem marca"; undefined = ausente/inválido (ainda não resolvido).
+export function normalizeBrand(raw) {
+  if (raw === null) return null;
+  const slug = String(raw ?? '').trim().toLowerCase();
+  return /^[a-z0-9][a-z0-9-]{0,80}$/.test(slug) ? slug : undefined;
+}
+
+// Fallback quando o site não tem marca no thesvg (ou o SVG não carrega).
 export function faviconUrl(url) {
   return `https://www.google.com/s2/favicons?domain=${new URL(url).hostname}&sz=128`;
+}
+
+// ---------- Marcas (thesvg.org) ----------
+
+// Sufixos de 2 níveis comuns (exemplo.com.br, exemplo.co.uk): o "nome" do domínio vem antes deles.
+const SECOND_LEVEL = new Set(['com', 'co', 'org', 'net', 'gov', 'edu', 'ac', 'gob', 'or', 'ne']);
+
+function hostOf(url) {
+  try {
+    return new URL(url).hostname.toLowerCase().replace(/^www\./, '');
+  } catch {
+    return null;
+  }
+}
+
+// Nome principal do domínio: "music.youtube.com" → "youtube"; "globo.com.br" → "globo".
+function domainLabel(host) {
+  const labels = host.split('.');
+  if (labels.length < 2) return labels[0] ?? '';
+  const twoLevel = labels.length >= 3 && labels.at(-1).length === 2 && SECOND_LEVEL.has(labels.at(-2));
+  return labels.at(twoLevel ? -3 : -2);
+}
+
+// Índice de busca a partir do manifesto do thesvg (registry.json → icons[]).
+// byHost: domínio da home oficial → slug. byName: slug/alias → slug.
+export function buildBrandIndex(icons) {
+  const list = (Array.isArray(icons) ? icons : [])
+    .filter((i) => isObject(i) && normalizeBrand(i.slug))
+    .map((i) => ({
+      slug: i.slug,
+      title: cleanTitle(i.title) || i.slug,
+      aliases: Array.isArray(i.aliases) ? i.aliases.map((a) => String(a).toLowerCase()) : [],
+      url: typeof i.url === 'string' ? i.url : '',
+      variants: Array.isArray(i.variants) ? i.variants.map(String) : [],
+    }));
+
+  const byHost = new Map();
+  // Quando vários slugs apontam para a mesma home, vence o igual ao nome do domínio,
+  // depois o que não é "-badge", depois o mais curto.
+  const rank = (slug, host) => [slug === domainLabel(host) ? 0 : 1, slug.endsWith('-badge') ? 1 : 0, slug.length];
+  const better = (a, b, host) => {
+    const [x, y] = [rank(a, host), rank(b, host)];
+    for (let k = 0; k < x.length; k++) if (x[k] !== y[k]) return x[k] < y[k];
+    return a < b;
+  };
+  for (const brand of list) {
+    let url;
+    try {
+      url = new URL(brand.url);
+    } catch {
+      continue;
+    }
+    if (url.pathname !== '/' && url.pathname !== '') continue; // só homes (não repositórios, wikis etc.)
+    const host = url.hostname.toLowerCase().replace(/^www\./, '');
+    const current = byHost.get(host);
+    if (!current || better(brand.slug, current, host)) byHost.set(host, brand.slug);
+  }
+
+  const byName = new Map();
+  for (const brand of list) byName.set(brand.slug, brand.slug);
+  for (const brand of list) {
+    for (const alias of brand.aliases) {
+      const key = alias.replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+      if (key && !byName.has(key)) byName.set(key, brand.slug);
+    }
+  }
+  return { list, byHost, byName, slugs: new Set(list.map((b) => b.slug)) };
+}
+
+// Marca de um endereço: 1º domínio da home oficial (subdomínio herda o domínio-pai);
+// 2º nome do domínio igual a um slug/alias. Devolve o slug ou null.
+export function matchBrand(index, url) {
+  const host = hostOf(url);
+  if (!index || !host) return null;
+  const labels = host.split('.');
+  for (let i = 0; i < labels.length - 1; i++) {
+    const candidate = labels.slice(i).join('.');
+    if (index.byHost.has(candidate)) return index.byHost.get(candidate);
+  }
+  return index.byName.get(domainLabel(host)) ?? null;
+}
+
+// Resolve a marca dos atalhos que ainda não têm "brand" (null quando não há marca).
+export function resolveMissingBrands(data, index) {
+  let changed = false;
+  const fill = (list) =>
+    list.map((site) => {
+      if (site.brand !== undefined) return site;
+      changed = true;
+      return { ...site, brand: matchBrand(index, site.url) };
+    });
+  const next = { ...data, orphans: fill(data.orphans), topics: data.topics.map((t) => ({ ...t, sites: fill(t.sites) })) };
+  return { data: changed ? next : data, changed };
+}
+
+export function hasMissingBrands(data) {
+  const missing = (list) => list.some((s) => s.brand === undefined);
+  return missing(data.orphans) || data.topics.some((t) => missing(t.sites));
+}
+
+// Há algo para compartilhar: ao menos uma partição (mesmo vazia) ou um atalho órfão.
+export function hasContent(data) {
+  return data.topics.length > 0 || data.orphans.length > 0;
 }
 
 // Slug do título, com sufixo numérico se já existir (ex.: divisao-1, divisao-1-2).
@@ -118,7 +239,28 @@ function toSite(raw) {
   if (!isObject(raw)) return null;
   const url = normalizeUrl(raw.url);
   if (!url) return null;
-  return { id: raw.id ? String(raw.id) : '', name: cleanTitle(raw.name) || domainOf(url), url };
+  return withIcon({ id: raw.id ? String(raw.id) : '', name: cleanTitle(raw.name) || domainOf(url), url }, raw.icon, raw.brand);
+}
+
+// Campos opcionais do ícone:
+// icon  = Material Symbol escolhido (tem prioridade);
+// brand = slug do thesvg, null = sem marca, ausente = ainda não resolvido.
+function withIcon(site, rawIcon, rawBrand) {
+  const out = { ...site };
+  const icon = normalizeIconName(rawIcon);
+  if (icon) out.icon = icon;
+  const brand = normalizeBrand(rawBrand);
+  if (brand !== undefined) out.brand = brand;
+  return out;
+}
+
+function toSettings(raw) {
+  const settings = {};
+  if (!isObject(raw)) return settings;
+  if (THEMES.includes(raw.theme)) settings.theme = raw.theme;
+  const accent = normalizeHex(raw.accent);
+  if (accent) settings.accent = accent;
+  return settings;
 }
 
 const toSites = (list) => (Array.isArray(list) ? list.map(toSite).filter(Boolean) : []);
@@ -135,7 +277,137 @@ export function sanitizeData(raw) {
     }))
     .filter((t) => t.title);
   const orphans = claimIds(toSites(raw.orphans), taken);
-  return { version: SCHEMA_VERSION, topics, orphans };
+  return { version: SCHEMA_VERSION, topics, orphans, settings: toSettings(raw.settings) };
+}
+
+// ---------- Preferências ----------
+
+// theme: 'dark' | 'light' | null (null = seguir o sistema).
+// accent: cor de destaque '#rrggbb' | null (null = Padrão: branco no escuro, grafite no claro).
+export function setAppearance(data, { theme = null, accent = null }) {
+  if (theme !== null && !THEMES.includes(theme)) return fail('Tema inválido.');
+  const color = accent === null ? null : normalizeHex(accent);
+  if (accent !== null && !color) return fail('Cor inválida. Use o formato #RGB ou #RRGGBB.');
+  const settings = { ...data.settings };
+  if (theme) settings.theme = theme;
+  else delete settings.theme;
+  if (color) settings.accent = color;
+  else delete settings.accent;
+  return ok({ ...data, settings });
+}
+
+// ---------- Cor de destaque (tema) ----------
+
+// Fundo de cada modo (mesmos valores de --background-dark-color em style.css).
+export const MODE_BACKGROUNDS = { dark: '#202020', light: '#ececec' };
+export const MIN_ACCENT_CONTRAST = 3; // WCAG: mínimo para elementos gráficos e texto grande
+const ON_ACCENT = { dark: '#1c1c1c', light: '#f2f2f2' }; // texto sobre a face da cor
+
+// 15 cores: "Padrão" (null) + 14 calibradas para contraste ≥ 3:1 nos dois modos.
+export const ACCENT_PALETTE = [
+  { name: 'Padrão', hex: null },
+  { name: 'Cinza', hex: '#7d8189' },
+  { name: 'Vermelho', hex: '#e5484d' },
+  { name: 'Laranja', hex: '#d55f24' },
+  { name: 'Âmbar', hex: '#b0770b' },
+  { name: 'Amarelo', hex: '#938004' },
+  { name: 'Lima', hex: '#6f8e16' },
+  { name: 'Verde', hex: '#379745' },
+  { name: 'Esmeralda', hex: '#0f9774' },
+  { name: 'Ciano', hex: '#138ea8' },
+  { name: 'Azul', hex: '#3b7ef0' },
+  { name: 'Índigo', hex: '#6a6ff0' },
+  { name: 'Violeta', hex: '#9061f0' },
+  { name: 'Rosa', hex: '#d94b90' },
+  { name: 'Magenta', hex: '#c64ad6' },
+];
+
+// Aceita #RGB ou #RRGGBB, com ou sem '#', sem diferenciar maiúsculas. Devolve '#rrggbb' ou null.
+export function normalizeHex(raw) {
+  const text = String(raw ?? '').trim().replace(/^#/, '').toLowerCase();
+  if (/^[0-9a-f]{6}$/.test(text)) return `#${text}`;
+  if (/^[0-9a-f]{3}$/.test(text)) return `#${[...text].map((c) => c + c).join('')}`;
+  return null;
+}
+
+export function hexToRgb(hex) {
+  const n = parseInt(hex.slice(1), 16);
+  return [n >> 16, (n >> 8) & 255, n & 255];
+}
+
+const rgbToHex = (rgb) => `#${rgb.map((c) => Math.round(c).toString(16).padStart(2, '0')).join('')}`;
+
+// Luminância relativa (WCAG 2.x).
+function relativeLuminance(hex) {
+  const [r, g, b] = hexToRgb(hex).map((c) => {
+    const v = c / 255;
+    return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
+  });
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+
+export function contrastRatio(a, b) {
+  const [hi, lo] = [relativeLuminance(a), relativeLuminance(b)].sort((x, y) => y - x);
+  return (hi + 0.05) / (lo + 0.05);
+}
+
+const accentContrast = (accent, mode) => contrastRatio(accent, MODE_BACKGROUNDS[mode]);
+
+// Modo em que a cor fica legível: o atual, se o contraste bastar; senão o outro.
+// Se nenhum dos dois atingir o mínimo, fica o de maior contraste.
+export function accentModeFor(accent, mode) {
+  if (accentContrast(accent, mode) >= MIN_ACCENT_CONTRAST) return mode;
+  const other = mode === 'dark' ? 'light' : 'dark';
+  return accentContrast(accent, other) > accentContrast(accent, mode) ? other : mode;
+}
+
+function rgbToHsl([r, g, b]) {
+  const [rn, gn, bn] = [r / 255, g / 255, b / 255];
+  const max = Math.max(rn, gn, bn);
+  const min = Math.min(rn, gn, bn);
+  const l = (max + min) / 2;
+  if (max === min) return [0, 0, l];
+  const d = max - min;
+  const s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+  let h;
+  if (max === rn) h = (gn - bn) / d + (gn < bn ? 6 : 0);
+  else if (max === gn) h = (bn - rn) / d + 2;
+  else h = (rn - gn) / d + 4;
+  return [h / 6, s, l];
+}
+
+function hslToRgb([h, s, l]) {
+  if (s === 0) return [l * 255, l * 255, l * 255];
+  const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+  const p = 2 * l - q;
+  const channel = (t) => {
+    const x = t < 0 ? t + 1 : t > 1 ? t - 1 : t;
+    if (x < 1 / 6) return p + (q - p) * 6 * x;
+    if (x < 1 / 2) return q;
+    if (x < 2 / 3) return p + (q - p) * (2 / 3 - x) * 6;
+    return p;
+  };
+  return [channel(h + 1 / 3), channel(h), channel(h - 1 / 3)].map((c) => c * 255);
+}
+
+// Cor exibida num modo: a própria, se legível; senão clareia (escuro) ou escurece (claro)
+// mantendo o matiz até atingir o contraste mínimo com o fundo.
+export function accentForMode(accent, mode) {
+  if (accentContrast(accent, mode) >= MIN_ACCENT_CONTRAST) return accent;
+  const [h, s, l] = rgbToHsl(hexToRgb(accent));
+  const step = mode === 'dark' ? 0.01 : -0.01;
+  for (let next = l + step; next >= 0 && next <= 1; next += step) {
+    const candidate = rgbToHex(hslToRgb([h, s, next]));
+    if (accentContrast(candidate, mode) >= MIN_ACCENT_CONTRAST) return candidate;
+  }
+  return mode === 'dark' ? '#ffffff' : '#000000';
+}
+
+// Tokens da cor de destaque para a interface: cor exibida, canais RGB e texto sobre ela.
+export function accentTokens(accent, mode) {
+  const color = accentForMode(accent, mode);
+  const on = contrastRatio(color, ON_ACCENT.dark) >= contrastRatio(color, ON_ACCENT.light) ? ON_ACCENT.dark : ON_ACCENT.light;
+  return { color, rgb: hexToRgb(color).join(', '), on };
 }
 
 // ---------- Mesclagem de listas de sites ----------
@@ -259,7 +531,9 @@ export function findSite(data, siteId) {
 }
 
 // Cria (siteId ausente) ou edita um atalho. topicId null = sem partição (órfão).
-export function saveSite(data, { siteId = null, name, url, topicId = null }) {
+// icon: nome do Material Symbols; vazio volta para o ícone automático.
+// brand: slug do thesvg, null = sem marca, undefined = resolver depois.
+export function saveSite(data, { siteId = null, name, url, topicId = null, icon = '', brand = undefined }) {
   const cleanUrl = normalizeUrl(url);
   if (!cleanUrl) return fail('URL inválida. Use algo como exemplo.com ou https://exemplo.com.');
 
@@ -270,13 +544,16 @@ export function saveSite(data, { siteId = null, name, url, topicId = null }) {
   if (targetList.some((s) => s.id !== siteId && urlKey(s.url) === key)) {
     return fail('Este endereço já existe nesta partição.');
   }
+  if (String(icon ?? '').trim() && !normalizeIconName(icon)) {
+    return fail('Nome de ícone inválido. Use letras, números e "_" (ex.: rocket_launch).');
+  }
 
   const current = findSite(data, siteId);
-  const site = {
+  const site = withIcon({
     id: current?.site.id ?? newSiteId(allSiteIds(data)),
     name: cleanTitle(name) || domainOf(cleanUrl),
     url: cleanUrl,
-  };
+  }, icon, brand);
 
   if (current && current.topicId === topicId) {
     return ok(updateList(data, topicId, (list) => list.map((s) => (s.id === site.id ? site : s))));
@@ -354,6 +631,7 @@ export function deleteTopics(data, topicIds, deleteSitesToo) {
 
 // Partição com o mesmo nome: substitui título/ID pelo do backup e mescla os sites.
 // Sites antigos ausentes no backup são preservados. Órfãos são somados com dedupe por URL.
+// As preferências atuais (tema e cor de destaque) não são sobrescritas pelo backup.
 export function mergeImported(current, raw) {
   const incoming = sanitizeData(raw);
   const taken = allSiteIds(current);
@@ -378,5 +656,6 @@ export function mergeImported(current, raw) {
     version: SCHEMA_VERSION,
     topics,
     orphans: mergeSites(current.orphans, incomingOrphans),
+    settings: { ...current.settings },
   };
 }

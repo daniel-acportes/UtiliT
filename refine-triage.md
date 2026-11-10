@@ -7,7 +7,7 @@ Acione sob comando explícito ("refine-triage", "sintetize a triagem", "limpe as
 1. **Leitura cruzada:** Leia o `triagem.txt` inteiro e compare com o `CLAUDE.md`.
 2. **Resolução de Conflitos:** Mescle as regras do `triagem.txt`. A regra mais recente sempre anula a anterior (ex: se o destino de órfãos mudou, mantenha só a versão final).
 3. **Filtro Estrito:** Remova qualquer regra que já conste no `CLAUDE.md` com a mesma lógica.
-4. **Síntese:** Gere um bloco Markdown ultra-enxuto com as conclusões finais.
+4. **Síntese:** Gere um bloco Markdown ultra-enxuto com as conclusões finais, separando os tópicos pelas mesmas divisões existentes em `CLAUDE.md`.
 
 ## 3. Ação no Sistema
 1. **Substitua** (não anexe) todo o conteúdo do arquivo `triagem.txt` apenas por este novo bloco sintetizado.

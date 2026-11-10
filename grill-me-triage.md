@@ -11,7 +11,7 @@ Acione sob comando explícito ("sabatine", "grill me") ou ao receber solicitaç�
 
 ## 3. Registro no Staging (`triagem.txt`)
 
-1. Resuma as decisões em tópicos curtos e faça append ao final de `/utilit/triagem.txt`.
+1. Resuma as decisões em tópicos curtos e faça append ao final de `triagem.txt` (raiz do projeto; ignorado pelo git).
 2. Solicite confirmação para iniciar a implementação do código.
 
 ## 4. Restrições

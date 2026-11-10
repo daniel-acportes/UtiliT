@@ -1,7 +1,0 @@
-## Feature: Lixeira flutuante para exclusão de itens selecionados (2026-11-06)
-- Visibilidade: aparece com fade quando há 1+ itens selecionados (Ctrl+clique) ou durante um arraste; some ao limpar a seleção (clicar fora, Esc, após excluir).
-- Posição: fixa na viewport (position: fixed), abaixo do header, alinhada à direita, no ponto do círculo vermelho de assets/exemplo.png.
-- Ação: clicar na lixeira abre modal de confirmação (openConfirmModal, danger). Sem exclusão imediata.
-- Escopo: atalhos e partições selecionados. Para partições, o modal inclui a checkbox "Exclua também os seus atalhos" (marcada por padrão; desmarcada = atalhos viram órfãos).
-- Ícones: todos os ícones de UI (exceto favicons dos sites) vêm do Google Material Symbols (Outlined) via Google Fonts. Migrar também os existentes (+ do FAB, engrenagem etc.).
-- Observação: o CLAUDE.md não será alterado de forma autônoma; sugerir ao usuário registrar a regra de ícones nele.
